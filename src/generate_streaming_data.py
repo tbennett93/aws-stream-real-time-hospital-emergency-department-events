@@ -122,7 +122,7 @@ def send_to_firehose(event):
 )
 
 def run_generator(num_attendances: int, delay_seconds: float):
-    id_start = 3 #can use this to stagger IDs if producing separate test runs
+    id_start = 5 #can use this to stagger IDs if producing separate test runs
     for x in range(num_attendances):
         events = generate_attendance_events(id_start)
 
@@ -140,4 +140,4 @@ def run_generator(num_attendances: int, delay_seconds: float):
 if __name__ == "__main__":
     print(boto3.client("sts").get_caller_identity())
 
-    run_generator(num_attendances=2, delay_seconds=1)
+    run_generator(num_attendances=2, delay_seconds=2) 
