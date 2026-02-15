@@ -33,7 +33,6 @@ The system favours warehouse-native incremental logic over unnecessary lakehouse
 - Only latest inbound files processed  
 - Historical partitions become increasingly stable over time  
 - Data must live in a DW to support joins (e.g. IP data)  
-- 99% of queries target last week’s data  
 
 ---
 
@@ -56,8 +55,8 @@ The system favours warehouse-native incremental logic over unnecessary lakehouse
 
 Redshift provides:
 
-- Efficient `COPY` ingestion  
-- Transactional `MERGE`  
+- Efficient COPY ingestion  
+- Transactional MERGE 
 - Warehouse-native joins  
 - Strong incremental update patterns  
 
@@ -69,7 +68,9 @@ Redshift provides:
 
 **Firehose → S3 (Raw Landing Zone)**
 
-- JSON event payloads  
+- JSON event payloads 
+    - Test data provided generated randomly in python locally and pushed to firehose
+    - Test data forces out of order attendance streams to test pipeline accuracy 
 - Partitioned by ingestion date  
 - Firehose provides:
   - Delivery reliability  
@@ -128,6 +129,7 @@ Inside Redshift:
 - 1 row per attendance  
 - SCD1 overwrite semantics  
 - Updated incrementally via MERGE  
+- Assumption that patient dimension already exists in the DW
 
 ---
 
@@ -142,6 +144,8 @@ Inside Redshift:
 
 - last_modified_ts is authoritative  
 - If inbound timestamp > stored timestamp → overwrite  
+- Event statuses pertaining to leaving ED count as leaving ED (i.e. discharge method).
+- If updating a record that doesn't exist - quarantine the file and attempt reprocessing for 1 business day
 - Supports:
   - Backdated corrections  
   - Out-of-sequence file loads  
@@ -178,10 +182,22 @@ If historical comparisons are required:
 - Current best-known timestamps  
 - Optimized for warehouse joins  
 
-### Distribution Key
+#### Distribution Key
+- patient id - most commonly joined table
 
 
-### Sort Key
+#### Sort Key
+- On arrival_date. This is what will be queried the most by far and is the key date for the table
+
+
+
+### Dimension/Support Tables
+
+- Not traditional Kimball dimensions
+- Designed to support mutable fact fields (late arrivals/corrections)
+- One table per entity e.g. Discharge, Review, Triage
+- One-to-one relationship with FACT
+- Hides repeated 'last_updated' fields from main fact table
 
 
 ---
