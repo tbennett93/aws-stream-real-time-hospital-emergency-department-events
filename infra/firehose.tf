@@ -16,7 +16,7 @@
                 "S3DestinationDescription": {
                     "RoleARN": "arn:aws:iam::294382260790:role/service-role/KinesisFirehoseServiceRole-ED-Event-Stre-eu-west-2-1770446245245",
                     "BucketARN": "arn:aws:s3:::ed-streaming",
-                    "Prefix": "firehose/ed-stream/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
+                    "Prefix": "firehose/ed-stream/new/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
                     "ErrorOutputPrefix": "firehose/ed-stream/errors/",
                     "BufferingHints": {
                         "SizeInMBs": 1,
@@ -35,7 +35,7 @@
                 "ExtendedS3DestinationDescription": {
                     "RoleARN": "arn:aws:iam::294382260790:role/service-role/KinesisFirehoseServiceRole-ED-Event-Stre-eu-west-2-1770446245245",
                     "BucketARN": "arn:aws:s3:::ed-streaming",
-                    "Prefix": "firehose/ed-stream/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
+                    "Prefix": "firehose/ed-stream/new/year=!{timestamp:yyyy}/month=!{timestamp:MM}/day=!{timestamp:dd}/",
                     "ErrorOutputPrefix": "firehose/ed-stream/errors/",
                     "BufferingHints": {
                         "SizeInMBs": 1,

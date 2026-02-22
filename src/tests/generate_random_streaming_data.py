@@ -35,8 +35,7 @@ def generate_attendance_events(attendance_seq: int) -> list[dict]:
         patient_id,
         "TRIAGE_COMPLETED",
         triage_ts,
-        SOURCE_SYSTEM,
-        attributes={"triage_category": random.randint(1, 5)}
+        SOURCE_SYSTEM
     )
     events.append(triage)
 

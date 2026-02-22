@@ -1,1 +1,7 @@
 Overview.txt
+todo.txt
+.vscode
+.venv
+src/__pycache__
+local scripts
+local data

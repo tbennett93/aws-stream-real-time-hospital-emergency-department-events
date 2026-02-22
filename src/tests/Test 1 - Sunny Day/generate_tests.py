@@ -1,19 +1,14 @@
 import time
-import random
-from datetime import datetime, timedelta, timezone, date
+from datetime import datetime
 import sys
 from pathlib import Path
-
 
 sys.path.append(str(Path(__file__).resolve().parents[2])) #modules saved in parent folder
 
 from generate_new_event import new_event
 from send_to_firehose import send_to_firehose
 
-
 SOURCE_SYSTEM = "FUNCTIONALITY_TESTS"
-
-
 
 
 def generate_test_events(attendance_id, patient_id):
@@ -36,9 +31,9 @@ def generate_test_events(attendance_id, patient_id):
         patient_id,
         "TRIAGE_COMPLETED",
         datetime(2026,1,1,1,0,0),
-        SOURCE_SYSTEM,
-        attributes={"triage_category": random.randint(1, 5)}
+        SOURCE_SYSTEM
     )
+
     events.append(triage)
 
     # CLINICAL REVIEW 
@@ -49,6 +44,7 @@ def generate_test_events(attendance_id, patient_id):
         datetime(2026,1,1,2,0,0),
         SOURCE_SYSTEM
     )
+
     events.append(clinician_review)
 
 
@@ -60,6 +56,7 @@ def generate_test_events(attendance_id, patient_id):
         datetime(2026,1,1,3,0,0),
         SOURCE_SYSTEM
     )
+    
     events.append(discharge)
 
     return events

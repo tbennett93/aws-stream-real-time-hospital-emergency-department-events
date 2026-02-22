@@ -7,8 +7,8 @@
 
 This project implements an incremental streaming Emergency Department (ED) pipeline using:
 
-- Amazon Kinesis Data Firehose  
-- AWS Glue  
+- Amazon Data Firehose    
+- Amazon Lambda
 - Amazon Redshift  
 
 It processes high-concurrency A&E event data and produces a **single up-to-date row per attendance**, using:
@@ -16,10 +16,9 @@ It processes high-concurrency A&E event data and produces a **single up-to-date 
 - Incremental ingestion  
 - Idempotent merge logic  
 - Event-time conflict resolution  
-- SCD1 overwrite semantics  
+- Change detection based on recorded timestamp
 - Controlled reprocessing and quarantine handling  
 
-The system favours warehouse-native incremental logic over unnecessary lakehouse complexity.
 
 ---
 
@@ -59,6 +58,7 @@ Redshift provides:
 - Transactional MERGE 
 - Warehouse-native joins  
 - Strong incremental update patterns  
+- OLAP query performance
 
 ---
 
@@ -69,9 +69,9 @@ Redshift provides:
 **Firehose → S3 (Raw Landing Zone)**
 
 - JSON event payloads 
-    - Test data provided generated randomly in python locally and pushed to firehose
+    - Test data provided generated in python locally and pushed to firehose
     - Test data forces out of order attendance streams to test pipeline accuracy 
-- Partitioned by ingestion date  
+- Partitions outbound files by ingestion date  
 - Firehose provides:
   - Delivery reliability  
   - Automatic batching  
@@ -88,6 +88,7 @@ Handled by Glue:
 - Enforces schema  
 - Compresses using Snappy  
 - Processes only new ingestion partitions  
+- Use Glue Python Shell for improved affordability vs Spark as data fits into memory
 
 Benefits:
 
@@ -95,6 +96,8 @@ Benefits:
 - Column pruning efficiency  
 - Better compression  
 - Lower cost  
+- Want to land raw files in S3 then convert later so history is retained
+-     Firehose could convert on the way in but we have potential data loss with bad data
 
 ---
 
@@ -127,8 +130,8 @@ Inside Redshift:
 ### 5. Merge Strategy (Core Logic)
 
 - 1 row per attendance  
-- SCD1 overwrite semantics  
 - Updated incrementally via MERGE  
+- Most recently entered record 'wins'
 - Assumption that patient dimension already exists in the DW
 
 ---
@@ -142,7 +145,7 @@ Inside Redshift:
 
 #### Update Logic
 
-- last_modified_ts is authoritative  
+- latest recorded_ts is authoritative  
 - If inbound timestamp > stored timestamp → overwrite  
 - Event statuses pertaining to leaving ED count as leaving ED (i.e. discharge method).
 - If updating a record that doesn't exist - quarantine the file and attempt reprocessing for 1 business day
@@ -161,12 +164,13 @@ This guarantees:
 
 ---
 
-## Why SCD1 (Not SCD2)
+## Why not SCD
 
+- Historical point-in-time analysis not required
+- Attributes are classic 'dimensions'
+- last_recorded_ts can be stored in FACT for each attribute
 - Raw event history preserved in S3  
 - ED reporting uses current truth  
-- SCD2 adds unnecessary complexity  
-- Fact table remains clean  
 
 If historical comparisons are required:
 - Reconstruct from event-level data  
@@ -179,25 +183,19 @@ If historical comparisons are required:
 
 - 1 row per attendance_id  
 - Derived metrics (e.g. breach)  
-- Current best-known timestamps  
-- Optimized for warehouse joins  
-
-#### Distribution Key
-- patient id - most commonly joined table
-
+- Current best-known timestamps for key markers (e.g. triage/discharge)
+  - Narrows the number of columns update from all columns to only those required
+- Designed to support mutable fields (late arrivals/corrections)
 
 #### Sort Key
 - On arrival_date. This is what will be queried the most by far and is the key date for the table
 
 
 
-### Dimension/Support Tables
-
-- Not traditional Kimball dimensions
-- Designed to support mutable fact fields (late arrivals/corrections)
-- One table per entity e.g. Discharge, Review, Triage
-- One-to-one relationship with FACT
-- Hides repeated 'last_updated' fields from main fact table
+#### Why no Dimension/Support Tables
+- A support table could abstract away the last_recorded_ts for a cleaner fact table
+- This would be needlessly complicated to ingest for minimal gain
+- No point-in-time history required
 
 
 ---
