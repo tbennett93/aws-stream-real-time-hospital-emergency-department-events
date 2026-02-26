@@ -93,11 +93,10 @@ Handled by Glue:
 Benefits:
 
 - Faster Redshift COPY  
-- Column pruning efficiency  
 - Better compression  
 - Lower cost  
 - Want to land raw files in S3 then convert later so history is retained
--     Firehose could convert on the way in but we have potential data loss with bad data
+- Firehose functionality allows conversion on inbound processing but using this would mean the raw data layer is lost
 
 ---
 
@@ -108,7 +107,7 @@ Benefits:
 - COPY is the most efficient ingestion method  
 - Only latest ingestion partitions are copied  
 - Metadata table stores last processed S3 prefix  
-- Idempotent design allows safe reprocessing  
+- Uses native redshift COPY JOB to automatically detect and load new files in s3
 
 If multiple Glue files exist since last load:
 - They are copied together  
