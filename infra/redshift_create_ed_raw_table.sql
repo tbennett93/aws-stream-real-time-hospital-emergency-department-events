@@ -1,4 +1,4 @@
-create table staging.ed(
+create table raw.ed(
   event_id varchar(50), 
   attendance_id varchar(50), 
   patient_id varchar(50), 

@@ -5,3 +5,5 @@ todo.txt
 src/__pycache__
 local scripts
 local data
+requirements.txt
+logs

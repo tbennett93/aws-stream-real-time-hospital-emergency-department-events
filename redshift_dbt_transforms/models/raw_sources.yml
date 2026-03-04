@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: ed_events
+    database: dev  
+    schema: raw  
+    tables:
+      - name: ed
+        columns:
+          - name: event_id
+            description: "The primary key for this table. Accept non-unique at this level and de-duplicate in staging."
+            tests:
+              - not_null
+          - name: attendance_id
+            description: "The ID of the attendance - a single attendance can have multiple events"
+            tests:
+              - not_null
+          - name: patient_id
+            description: "The ID of the patient - a single patient can have multiple attendances"
+            tests:
+              - not_null
+          - name: event_type
+            description: "The type of event being transmitted e.g. arrival/discharge."
+            tests:
+              - not_null
+          - name: event_ts
+            description: "The time of the event - this can be backdated."
+            tests:
+              - not_null
+          - name: recorded_ts
+            description: "The time the event was entered on the system."
+            tests:
+              - not_null        
+          - name: source_system
+            description: "The system that transmitted the event"
+            tests:
+              - not_null    
