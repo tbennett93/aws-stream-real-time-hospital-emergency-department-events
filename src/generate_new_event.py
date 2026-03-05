@@ -19,7 +19,8 @@ def new_event(
     patient_id: str,
     event_type: str,
     event_ts: datetime,
-    source_system: str
+    source_system: str,
+    patient_name: str
 ) -> dict:
     
     if event_type not in EVENT_TYPES:
@@ -32,5 +33,6 @@ def new_event(
         "event_type": event_type,
         "event_ts": event_ts.isoformat(),
         "recorded_ts": datetime.now(timezone.utc).isoformat(),
-        "source_system": source_system
+        "source_system": source_system,
+        "patient_name": patient_name
     }

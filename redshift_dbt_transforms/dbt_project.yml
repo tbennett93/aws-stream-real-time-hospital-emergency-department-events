@@ -28,8 +28,12 @@ models:
     staging:
       +schema: staging
       +materialized: view
-
-
     mart:
       +schema: mart
       +materialized: table
+
+
+snapshots:
+  redshift_dbt_transforms:
+    mart:
+        +schema: mart

@@ -1,0 +1,10 @@
+snapshots:
+  - name: dim_patient
+    relation: ref('stg_patients')
+    config:
+      database: dev
+      schema: mart
+      unique_key: patient_id
+      strategy: check
+      check_cols: [patient_name]
+      hard_deletes: new_record

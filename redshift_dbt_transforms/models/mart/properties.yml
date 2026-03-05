@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: dim_patient
+    description: "A sample patient dimension table. Production table would contain more columns "
+    columns:
+      - name: patient_id
+        tests:
+          - unique
+          - not_null
+                               
+

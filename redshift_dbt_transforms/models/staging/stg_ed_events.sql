@@ -14,12 +14,21 @@ clean as (
         cast(event_ts as timestamp) as event_ts,
         cast(recorded_ts as timestamp) as recorded_ts,
         cast(upper(source_system) as varchar) as source_system,
+        cast(lower(patient_name) as varchar) as patient_name,
         row_number() over (partition by event_id order by recorded_ts desc) rn 
 
     from source
 
 )
 
-select * 
+select 
+    event_id,
+    attendance_id,
+    patient_id,
+    event_type,
+    event_ts,
+    recorded_ts,
+    source_system,
+    patient_name
 from clean
 where rn=1
