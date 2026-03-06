@@ -35,5 +35,4 @@ models:
 
 snapshots:
   redshift_dbt_transforms:
-    mart:
-        +schema: mart
+  #empty
