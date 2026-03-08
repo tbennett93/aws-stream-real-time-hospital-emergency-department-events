@@ -11,7 +11,7 @@ import boto3
 def get_new_files(s3, bucket: str):
     #get new firehose files
     # prefix = f"firehose/ed-stream/new/{partition_key}" #limits to just todays files
-    prefix = f"firehose/ed-stream/new/"
+    prefix = f"firehose/ed-stream/raw/"
 
     list_files_response: dict = s3.list_objects_v2(
         Bucket=bucket,
@@ -20,8 +20,23 @@ def get_new_files(s3, bucket: str):
 
     if "Contents" not in list_files_response.keys():
         raise ValueError(f"No files in {bucket}/{prefix} or prefix does not exist")
+        
+        
+    filepaths = [f"s3://ed-streaming/{content['Key']}" for content in list_files_response["Contents"] ]
+    
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table("ed-streaming-raw-processing-manifest")
+    
+    unprocessed_files = []
+    for filepath in filepaths:
+        resp = table.get_item(
+            Key={"filepath": filepath}
+        )
+        
+        if "Item" not in resp:
+            unprocessed_files.append(filepath)
 
-    return [f"s3://ed-streaming/{content['Key']}" for content in list_files_response["Contents"] ]
+    return unprocessed_files
 
 
 def build_df(files: list):
@@ -114,6 +129,20 @@ def delete_original_files(s3, files: list, bucket: str):
             Bucket=bucket,
             Key=file
         )
+        
+
+#log processed file so it isnt reingested
+def write_manifest_records(files: list):
+
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table("ed-streaming-raw-processing-manifest")
+
+    for file in files:
+        table.put_item(
+            Item={
+                "filepath": file
+            }
+        )
 
 
 #process start
@@ -124,13 +153,13 @@ if __name__ == '__main__':
 
     date=datetime.date.today()
     year, month, day = date.strftime("%Y"), date.strftime("%m"), date.strftime("%d")
-
-
     partition_key = f"year={year}/month={month}/day={day}/"
 
     #get files
     files = get_new_files(s3, bucket)
-
+    if len(files)==0:
+        raise ValueError("No new files to process")
+    
     #build df
     df_combined = build_df(files)
 
@@ -143,6 +172,7 @@ if __name__ == '__main__':
         "event_ts":"datetime",
         "recorded_ts":"datetime",
         "source_system":"str",
+        "patient_name":"str"
 
     }
     df_clean, df_quarantine = validate_df(df_combined, schema)
@@ -166,8 +196,11 @@ if __name__ == '__main__':
         output_path_clean=output_path_clean, 
         output_path_dirty=output_path_dirty
     )
+    
+    #record completion to prevent duplicate loads
+    write_manifest_records(files)
 
 
     #move input files to processed
-    copy_files_to_processed(s3, files, bucket, f"firehose/ed-stream/processed/{partition_key}")
-    delete_original_files(s3, files, bucket )
+    #copy_files_to_processed(s3, files, bucket, f"firehose/ed-stream/processed/{partition_key}")
+    #delete_original_files(s3, files, bucket ) # no longer deletes original files as this breaks idempotency. Instead ingestion is managed by partition

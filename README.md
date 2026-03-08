@@ -8,8 +8,9 @@
 This project implements an incremental streaming Emergency Department (ED) pipeline using:
 
 - Amazon Data Firehose    
-- Amazon Lambda
+- Amazon Glue
 - Amazon Redshift  
+- Amazon DynamoDB
 
 It processes high-concurrency A&E event data and produces a **single up-to-date row per attendance**, using:
 
@@ -87,7 +88,8 @@ Handled by Glue:
 - Converts JSON to Parquet  
 - Enforces schema  
 - Compresses using Snappy  
-- Processes only new ingestion partitions  
+- Processes only new files
+- Processed files recorded in manifest. New files defined as such if not in the manifest during processing
 - Use Glue Python Shell for improved affordability vs Spark as data fits into memory
 
 Benefits:
