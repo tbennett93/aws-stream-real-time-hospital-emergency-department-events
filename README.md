@@ -89,7 +89,7 @@ Handled by Glue:
 - Enforces schema  
 - Compresses using Snappy  
 - Processes only new files
-- Processed files recorded in manifest. New files defined as such if not in the manifest during processing
+- Processed files recorded in manifest. New files defined as such if not in the manifest during processinggit
 - Use Glue Python Shell for improved affordability vs Spark as data fits into memory
 
 Benefits:

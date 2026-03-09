@@ -1,14 +1,14 @@
 import pandas as pd
 import datetime
 from pathlib import Path
-import pyarrow
+import pyarrow #for parquet conversion
 import boto3
 
 
 
 
 
-def get_new_files(s3, bucket: str):
+def get_new_files(s3, bucket: str, manifest_table_name: str):
     #get new firehose files
     # prefix = f"firehose/ed-stream/new/{partition_key}" #limits to just todays files
     prefix = f"firehose/ed-stream/raw/"
@@ -25,7 +25,7 @@ def get_new_files(s3, bucket: str):
     filepaths = [f"s3://ed-streaming/{content['Key']}" for content in list_files_response["Contents"] ]
     
     dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table("ed-streaming-raw-processing-manifest")
+    table = dynamodb.Table(manifest_table_name)
     
     unprocessed_files = []
     for filepath in filepaths:
@@ -132,10 +132,10 @@ def delete_original_files(s3, files: list, bucket: str):
         
 
 #log processed file so it isnt reingested
-def write_manifest_records(files: list):
+def write_manifest_records(files: list, table_name: str):
 
     dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table("ed-streaming-raw-processing-manifest")
+    table = dynamodb.Table(table_name)
 
     for file in files:
         table.put_item(
@@ -150,13 +150,14 @@ if __name__ == '__main__':
 
     s3 = boto3.client('s3')
     bucket = "ed-streaming"
+    manifest_table_name = "ed-streaming-raw-processing-manifest"
 
     date=datetime.date.today()
     year, month, day = date.strftime("%Y"), date.strftime("%m"), date.strftime("%d")
     partition_key = f"year={year}/month={month}/day={day}/"
 
     #get files
-    files = get_new_files(s3, bucket)
+    files = get_new_files(s3, bucket, manifest_table_name)
     if len(files)==0:
         raise ValueError("No new files to process")
     
@@ -198,7 +199,7 @@ if __name__ == '__main__':
     )
     
     #record completion to prevent duplicate loads
-    write_manifest_records(files)
+    write_manifest_records(files, manifest_table_name)
 
 
     #move input files to processed
