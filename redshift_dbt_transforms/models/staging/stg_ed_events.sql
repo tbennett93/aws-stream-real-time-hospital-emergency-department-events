@@ -24,7 +24,7 @@ clean as (
 select 
     event_id,
     attendance_id,
-    patient_id,
+    patient_id as patient_key,
     event_type,
     event_ts,
     recorded_ts,

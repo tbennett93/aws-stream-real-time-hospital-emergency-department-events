@@ -11,7 +11,7 @@ models:
       - name: attendance_id
         tests:
           - not_null
-      - name: patient_id
+      - name: patient_key
         tests:
           - not_null
       - name: event_type

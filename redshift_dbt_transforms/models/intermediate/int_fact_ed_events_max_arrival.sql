@@ -2,7 +2,7 @@ with _data as (
     select 
         event_id,
         attendance_id,
-        patient_id,
+        patient_key,
         event_ts,
         recorded_ts,
         source_system,
@@ -15,7 +15,7 @@ with _data as (
 select 
     event_id,
     attendance_id,
-    patient_id,
+    patient_key,
     event_ts,
     recorded_ts,
     source_system,
