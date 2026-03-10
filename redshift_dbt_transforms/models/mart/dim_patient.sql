@@ -20,7 +20,7 @@ with
 
 
 select 
-    md5(patient_id || '|' || from_dttm) as patient_sk,
+    {{ dbt_utils.generate_surrogate_key(['patient_id', 'from_dttm']) }}  as patient_sk,
     patient_id as patient_key,
     patient_name,
     from_dttm,

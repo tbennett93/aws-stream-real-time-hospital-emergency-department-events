@@ -31,8 +31,8 @@ models:
     mart:
       +schema: mart
       +materialized: table
+    intermediate:
+      +schema: intermediate
+      +materialized: view
 
 
-snapshots:
-  redshift_dbt_transforms:
-  #empty
