@@ -8,22 +8,36 @@ models:
         tests:
           - unique
           - not_null
+        description: '{{ doc("event_id") }}'
       - name: attendance_id
         tests:
           - not_null
+        description: '{{ doc("attendance_id") }}'
+        
       - name: patient_key
         tests:
           - not_null
+        description: '{{ doc("patient_key") }}'
+
       - name: event_type
         tests:
           - not_null
+        description: '{{ doc("event_type") }}'
+        
       - name: event_ts
         tests:
           - not_null
+        description: '{{ doc("event_ts") }}'
+        
       - name: recorded_ts
         tests:
-          - not_null        
+          - not_null       
+        description: '{{ doc("recorded_ts") }}'
+         
       - name: source_system
         tests:
-          - not_null                                           
-
+          - not_null      
+        description: '{{ doc("source_system") }}'
+                                             
+      - name: patient_name
+        description: '{{ doc("patient_name") }}'

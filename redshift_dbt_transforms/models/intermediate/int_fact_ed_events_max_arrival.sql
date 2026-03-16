@@ -13,13 +13,8 @@ with _data as (
 )
 
 select 
-    event_id,
     attendance_id,
-    patient_key,
-    event_ts,
-    recorded_ts,
-    source_system,
-    patient_name
+    event_ts as arrival_ts
 from
     _data
 where rn = 1

@@ -1,0 +1,44 @@
+models:
+  - name: int_fact_ed_events_as_attendances
+    description: "Rolls the events table up to attendance level data by selecting unique attendance level fields"
+    columns:
+      - name: attendance_id
+        description: '{{ doc("attendance_id") }}'
+      - name: source_system
+        description: '{{ doc("source_system") }}'
+      - name: patient_key
+        description: '{{ doc("patient_key") }}'        
+
+  - name: int_fact_ed_events_max_arrival
+    description: "The most recently recorded arrival timestamp for the attendance"
+    columns:
+      - name: attendance_id
+        description: '{{ doc("attendance_id") }}'
+      - name: arrival_ts
+        description: "The time the patient arrived for the attendance"
+
+
+  - name: int_fact_ed_events_max_clinic_review
+    description: "The most recently recorded clinical review timestamp for the attendance"
+    columns:
+      - name: attendance_id
+        description: '{{ doc("attendance_id") }}'
+      - name: clinic_review_ts
+        description: "The time the patient had their first clinical review"
+
+  - name: int_fact_ed_events_max_discharge
+    description: "The most recently recorded discharge timestamp for the attendance"
+    columns:
+      - name: attendance_id
+        description: '{{ doc("attendance_id") }}'
+      - name: discharge_ts
+        description: "The time the patient was discharged"        
+
+  - name: int_fact_ed_events_max_triage
+    description: "The most recently recorded triage timestamp for the attendance"
+    columns:
+      - name: attendance_id
+        description: '{{ doc("attendance_id") }}'
+      - name: triage_ts
+        description: "The time the patient was triaged"  
+

@@ -5,8 +5,109 @@ models:
     description: "A sample patient dimension table. Production table would contain more columns "
     columns:
       - name: patient_sk
+        description: '{{ doc("patient_sk")}}'
+        tests:
+          - unique
+          - not_null     
+                                            
+      - name: patient_name
+        description: '{{ doc("patient_name") }}'
+
+      - name: patient_key
+        description: '{{ doc("patient_key") }}'
+
+      - name: from_dttm
+        description: 'the timestamp indicating the moment the record was valid from'
+
+      - name: to_dttm
+        description: 'the timestamp indicating the moment the record is valid to'        
+
+
+  - name: fact_ed_events
+    description: "A fact table at event level"
+    columns:
+      - name: event_id
         tests:
           - unique
           - not_null
-                               
+        description: '{{ doc("event_id") }}'
 
+      - name: attendance_id
+        tests:
+          - not_null
+        description: '{{ doc("attendance_id") }}'
+        
+      - name: patient_key
+        tests:
+          - not_null
+        description: '{{ doc("patient_key") }}'
+
+      - name: event_type
+        tests:
+          - not_null
+        description: '{{ doc("event_type") }}'
+        
+      - name: event_ts
+        tests:
+          - not_null
+        description: '{{ doc("event_ts") }}'
+        
+      - name: recorded_ts
+        tests:
+          - not_null       
+        description: '{{ doc("recorded_ts") }}'
+         
+      - name: source_system
+        tests:
+          - not_null      
+        description: '{{ doc("source_system") }}'
+
+
+      - name: patient_sk
+        tests:
+          - not_null
+        description: '{{ doc("patient_sk") }}'
+
+
+          
+  - name: fact_ed_attendances
+    description: "A fact table with events rolled up to attendance level. Key event details from the attendance are recorded as columns in a row (rather than one row per event in the events fact table)"
+    columns:
+
+      - name: attendance_id
+        tests:
+          - not_null
+        description: '{{ doc("attendance_id") }}'
+        
+      - name: source_system
+        tests:
+          - not_null      
+        description: '{{ doc("source_system") }}'        
+
+
+      - name: arrival_ts
+        description: "the timestamp at which the patient arrived in ED"
+      - name: review_ts
+        description: "the timestamp at which the patient has their clinical review"
+      - name: triage_ts
+        description: "the timestamp at which the patient was triaged"
+      - name: discharge_ts
+        description: "the timestamp at which the patient was discharged"
+      - name: arrival_to_review_mins
+        description: "time in minutes between arrival and review"
+      - name: arrival_to_triage_mins
+        description: "time in minutes between arrival and review"
+      - name: arrival_to_discharge_mins
+        description: "time in minutes between arrival and review"                
+
+      
+      - name: patient_key
+        tests:
+          - not_null
+        description: '{{ doc("patient_key") }}'
+
+      - name: patient_sk
+        tests:
+          - not_null
+        description: '{{ doc("patient_sk") }}'
+                        
