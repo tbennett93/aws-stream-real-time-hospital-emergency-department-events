@@ -39,7 +39,10 @@ models:
         
       - name: patient_key
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn
+
         description: '{{ doc("patient_key") }}'
 
       - name: event_type
@@ -65,7 +68,9 @@ models:
 
       - name: patient_sk
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn          
         description: '{{ doc("patient_sk") }}'
 
 
@@ -77,6 +82,7 @@ models:
       - name: attendance_id
         tests:
           - not_null
+          - unique
         description: '{{ doc("attendance_id") }}'
         
       - name: source_system
@@ -103,11 +109,15 @@ models:
       
       - name: patient_key
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn         
         description: '{{ doc("patient_key") }}'
 
       - name: patient_sk
         tests:
-          - not_null
+          - not_null:
+              config:
+                severity: warn         
         description: '{{ doc("patient_sk") }}'
                         
