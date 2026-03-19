@@ -7,3 +7,4 @@ local scripts
 local data
 requirements.txt
 logs
+.venv-glue

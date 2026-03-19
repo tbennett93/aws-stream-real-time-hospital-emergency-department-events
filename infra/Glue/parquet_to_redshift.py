@@ -1,8 +1,8 @@
 import boto3
 import datetime
 import json
-
-
+import pandas as pd
+import pyarrow
 
 
 
@@ -70,6 +70,29 @@ def write_manifest_file(bucket, manifest_file_key, unprocessed_files, s3):
     )
 
 
+def add_metadata_to_raw_files(unprocessed_files):
+    ts = datetime.datetime.now()
+    print(unprocessed_files)
+    for file in unprocessed_files:
+        
+        df = pd.read_parquet(file)
+
+        df = df.drop(columns=["year", "month", "day"], errors="ignore")
+
+        df["source_filename"] = file
+        df["ingestion_ts"] = ts
+
+        key = file.replace(f"s3://{bucket}/", "")
+
+        parquet_df = df.to_parquet( index=False)
+
+        s3.put_object(
+            Bucket = bucket,
+            Body = parquet_df,
+            Key = key
+        )        
+        
+        
 
 
 def copy_to_redshift(bucket, manifest_file_key, iam_role, database, schema, table, workgroup, redshift):
@@ -87,8 +110,7 @@ def copy_to_redshift(bucket, manifest_file_key, iam_role, database, schema, tabl
         Database=database,
         WithEvent=False,
         StatementName='copy_s3_parquet_to_redshift',
-        WorkgroupName=workgroup,
-        SessionKeepAliveSeconds=20
+        WorkgroupName=workgroup
     )
 
 
@@ -114,8 +136,13 @@ manifest_table = dynamodb.Table("ed-streaming-warehouse-load-manifest")
 
 unprocessed_files = get_unprocessed_files(filepaths, manifest_table)
 
+add_metadata_to_raw_files(unprocessed_files)
+
+
 manifest_file_key = "redshift/unprocessed.manifest"
 write_manifest_file(bucket, manifest_file_key, unprocessed_files, s3)
+
+
 
 redshift = boto3.client('redshift-data')
 iam_role = 'arn:aws:iam::294382260790:role/service-role/AmazonRedshift-CommandsAccessRole-20260222T123146'
@@ -123,21 +150,30 @@ database = 'dev'
 table_name = 'ed'
 schema = 'raw'
 workgroup = 'hospital-data-workgroup'
-copy_to_redshift(bucket, manifest_file_key, iam_role, database, schema, table_name, workgroup, redshift)
-
-update_manifest_store_with_processed_files(unprocessed_files, manifest_table)
+response = copy_to_redshift(bucket, manifest_file_key, iam_role, database, schema, table_name, workgroup, redshift)
 
 
-# import time
 
-# statement_id = response["Id"]
+import time
 
-# while True:
-#    result = redshift.describe_statement(Id=statement_id)
-#    print("status", result["Status"])
+statement_id = response["Id"]
 
-#    if result["Status"] in ["FAILED", "FINISHED", "ABORTED"]:
-#        print("final result:", result)
-#        break
+while True:
+    result = redshift.describe_statement(Id=statement_id)
+    status = result["Status"]
+    print("status", status)
 
-#    time.sleep(2)
+    if status in ["FAILED", "FINISHED", "ABORTED"]:
+        break
+
+    time.sleep(2)
+
+
+
+if status == "FINISHED":
+    update_manifest_store_with_processed_files(unprocessed_files, manifest_table)
+else:
+    raise Exception(f"Redshift COPY failed: {result.get('Error')}")
+
+
+

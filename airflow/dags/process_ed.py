@@ -22,7 +22,7 @@ with DAG(
     wait_for_file = S3KeySensor(
         task_id="wait_for_file",
         bucket_name="ed-streaming",
-        bucket_key="firehose/ed-stream/new/*",
+        bucket_key="firehose/ed-stream/raw/*",
         wildcard_match=True,
         aws_conn_id="aws_default",
         poke_interval=10,
