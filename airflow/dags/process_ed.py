@@ -75,7 +75,7 @@ with DAG(
         }
     )
 
-    wait_for_file >> convert_to_parquet_glue >> copy_parquet_to_redshift_glue >> dbt_run
+    convert_to_parquet_glue >> copy_parquet_to_redshift_glue >> dbt_run
 
 
 #wait for file
