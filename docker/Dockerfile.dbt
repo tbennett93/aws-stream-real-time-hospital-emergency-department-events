@@ -1,0 +1,9 @@
+FROM python:3.11-slim
+
+RUN pip install dbt-redshift
+
+WORKDIR /app
+
+COPY redshift_dbt_transforms/ /app
+
+ENTRYPOINT ["dbt"]

@@ -8,3 +8,4 @@ local data
 requirements.txt
 logs
 .venv-glue
+airflow/dags/__pycache__/
