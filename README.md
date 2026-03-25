@@ -1,5 +1,6 @@
+
 # Incremental Streaming ED Pipeline  
-### Firehose → Glue → Redshift with Idempotent Merge & Event-Time Conflict Resolution
+### Firehose → Glue → Redshift + dbt (Airflow Orchesated)
 
 ---
 
@@ -8,18 +9,20 @@
 This project implements an incremental streaming Emergency Department (ED) pipeline using:
 
 - Amazon Data Firehose    
-- Amazon Glue
+- Amazon Glue  
 - Amazon Redshift  
-- Amazon DynamoDB
+- dbt  
+- Apache Airflow (Dockerised orchestration)
 
-It processes high-concurrency A&E event data and produces a **single up-to-date row per attendance**, using:
+It processes high-concurrency A&E event data and produces a single, analytics-ready row per attendance, with full historical traceability
+
+Key capabilities:
 
 - Incremental ingestion  
 - Idempotent merge logic  
 - Event-time conflict resolution  
-- Change detection based on recorded timestamp
-- Controlled reprocessing and quarantine handling  
-
+- dbt-based transformation layer  
+- Containerised orchestration (Airflow)  
 
 ---
 
@@ -28,11 +31,25 @@ It processes high-concurrency A&E event data and produces a **single up-to-date 
 - High-concurrency A&E data  
 - Events pushed to S3 via Firehose as JSON  
 - 15–30 minute latency acceptable  
-- Final output: **1 row per attendance with most up-to-date data**  
-- Same attendance may be updated multiple times  
-- Only latest inbound files processed  
-- Historical partitions become increasingly stable over time  
-- Data must live in a DW to support joins (e.g. IP data)  
+- Same attendance updated multiple times  
+- Out-of-order events expected  
+
+Outputs:
+- Event-level dataset (full history)  
+- Attendance-level dataset (latest state)  
+
+---
+
+## Architecture
+
+### Ingestion → Processing → Modelling
+
+Airflow → orchestration  
+
+1. Firehose → S3 (raw JSON)  
+2. Glue → Parquet conversion  
+3. Glue → Redshift load 
+4. dbt → transformation layer  
 
 ---
 
@@ -40,164 +57,181 @@ It processes high-concurrency A&E event data and produces a **single up-to-date 
 
 ### Why Not Iceberg?
 
-- Still requires loading and merging into Redshift  
-- Adds unnecessary complexity  
-- No strong need for time travel  
-- Redshift already provides transactional MERGE  
+- Still requires downstream warehouse merge  
+- Adds complexity without strong benefit  
+- No requirement for time travel  
+
+---
 
 ### Why Not Athena?
 
-- Relies heavily on drop/recreate patterns  
-- Poor fit for incremental upserts  
-- Not designed for mutable fact rows  
+- Poor support for incremental upserts  
+- Not suited for mutable fact rows  
+
+---
 
 ### Why Redshift-Centric?
 
-Redshift provides:
-
-- Efficient COPY ingestion  
-- Transactional MERGE 
-- Warehouse-native joins  
-- Strong incremental update patterns  
-- OLAP query performance
+- Native `COPY` performance  
+- Transactional `MERGE`  
+- Strong OLAP performance  
+- Supports mutable, late-arriving data  
 
 ---
 
-## Final Pipeline Design
+## Pipeline Design
 
 ### 1. Ingestion
 
-**Firehose → S3 (Raw Landing Zone)**
+**Firehose → S3**
 
-- JSON event payloads 
-    - Test data provided generated in python locally and pushed to firehose
-    - Test data forces out of order attendance streams to test pipeline accuracy 
-- Partitions outbound files by ingestion date  
-- Firehose provides:
-  - Delivery reliability  
-  - Automatic batching  
-  - At-least-once semantics  
-  - Buffering for ingestion spikes  
+- JSON payloads  
+- Test data simulates out-of-order events  
+- Partitioned by ingestion date  
+- At-least-once delivery  
 
 ---
 
-### 2. JSON → Parquet Conversion
+### 2. JSON → Parquet Conversion (Glue)
 
-Handled by Glue:
-
-- Converts JSON to Parquet  
-- Enforces schema  
-- Compresses using Snappy  
-- Processes only new files
-- Processed files recorded in manifest. New files defined as such if not in the manifest during processinggit
-- Use Glue Python Shell for improved affordability vs Spark as data fits into memory
-
-Benefits:
-
-- Faster Redshift COPY  
-- Better compression  
-- Lower cost  
-- Want to land raw files in S3 then convert later so history is retained
-- Firehose functionality allows conversion on inbound processing but using this would mean the raw data layer is lost
+- Schema enforcement  
+- Snappy compression  
+- Only new files processed (manifest tracking)  
+- Python Shell used for cost efficiency  
 
 ---
 
-### 3. Incremental Load into Redshift
+### 3. Load into Redshift
 
-#### COPY into Staging
+- COPY into staging  
+- Metadata tracks last processed S3 prefix  
+- Redshift COPY JOB used for auto-detection  
 
-- COPY is the most efficient ingestion method  
-- Only latest ingestion partitions are copied  
-- Metadata table stores last processed S3 prefix  
-- Uses native redshift COPY JOB to automatically detect and load new files in s3
-
-If multiple Glue files exist since last load:
-- They are copied together  
-- Duplicates handled in staging  
+Handles:
+- Multiple files per batch  
+- Duplicate ingestion safely  
 
 ---
 
 ### 4. Staging Clean-up
 
-Inside Redshift:
-
-- Remove test patients  
+- Remove test data  
 - Fix data types  
-- Remove duplicates  
-- Apply data quality checks  
+- Deduplicate  
+- Apply quality checks  
 
 ---
 
-### 5. Merge Strategy (Core Logic)
+### 5. Refresh Strategy 
 
-- 1 row per attendance  
-- Updated incrementally via MERGE  
-- Most recently entered record 'wins'
-- Assumption that patient dimension already exists in the DW
+- **1 row per attendance**
+- Most recent `recorded_ts` wins  
 
----
+Supports:
 
-#### Insert Logic
+- Out-of-order events  
+- Backdated corrections  
+- Idempotent reprocessing  
 
-- Admissions inserted first (and before any updates are attempted)
-- Prevents discharge processing before attendance exists  
-
----
-
-#### Update Logic
-
-- latest recorded_ts is authoritative  
-- If inbound timestamp > stored timestamp → overwrite  
-- Event statuses pertaining to leaving ED count as leaving ED (i.e. discharge method).
-- If updating a record that doesn't exist - quarantine the file and attempt reprocessing for 1 business day
-- Supports:
-  - Backdated corrections  
-  - Out-of-sequence file loads  
-  - Safe reprocessing  
-
-Each tracked field stores its own modification timestamp.
-
-This guarantees:
-
-- Event-time conflict resolution  
-- Idempotency  
-- Protection against replay corruption  
+Each field tracks its own modification timestamp.
 
 ---
 
-## Why not SCD
+## dbt Transformation Layer
 
-- Historical point-in-time analysis not required
-- Attributes are classic 'dimensions'
-- last_recorded_ts can be stored in FACT for each attribute
-- Raw event history preserved in S3  
-- ED reporting uses current truth  
+dbt is used to structure the analytical layer on top of Redshift.
 
-If historical comparisons are required:
-- Reconstruct from event-level data  
+### Why Not dbt Snapshots?
+
+Snapshots are **not used**.
+
+**Reason:**
+- Streaming batches can arrive late or out of order  
+- Snapshots risk missing or incorrectly versioning changes  
+
+**Instead:**
+- Full history is stored in raw/event tables  
+- SCD Type 2 logic is implemented explicitly in dbt  
 
 ---
 
-## Redshift Design
+### Model Layers
 
-### Fact Table
+#### Staging
 
-- 1 row per attendance_id  
-- Derived metrics (e.g. breach)  
-- Current best-known timestamps for key markers (e.g. triage/discharge)
-  - Narrows the number of columns update from all columns to only those required
-- Designed to support mutable fields (late arrivals/corrections)
+- Cleans raw data  
+- Standardises formats  
+- Deduplicates records  
 
-#### Sort Key
-- On arrival_date. This is what will be queried the most by far and is the key date for the table
+---
 
+#### `dim_patient`
 
+- Implements **SCD Type 2**
+- Tracks attribute changes over time  
+- Uses:
+  - `valid_from`
+  - `valid_to`
+  - current flag  
 
-#### Why no Dimension/Support Tables
-- A support table could abstract away the last_recorded_ts for a cleaner fact table
-- This would be needlessly complicated to ingest for minimal gain
-- No point-in-time history required
+---
 
+#### `fact_ed_events`
+
+- Event-level dataset  
+- Full historical record of all events  
+- Used for reconstruction and auditing  
+
+---
+
+#### `fact_ed_attendances`
+
+- Aggregated attendance-level dataset  
+- Rolls up events into a single row  
+
+Logic:
+- Identifies key event types (arrival, discharge, etc.)  
+- Selects the **most recent occurrence per event type**  
+- Produces a single, analysis-ready record per attendance  
+
+---
+
+## Metadata & Traceability
+
+Raw staging tables include:
+
+- `processed_timestamp`  
+- `source_file_name`  
+
+This enables:
+
+- Full traceability to source files  
+- Debugging of ingestion issues  
+- Reconciliation and auditability  
+
+---
+
+## Orchestration (Airflow)
+
+Pipeline steps:
+
+1. Convert JSON → Parquet (Glue)  
+2. Load Parquet → Redshift (Glue)  
+3. Run dbt transformations (DockerOperator)  
+
+---
+
+## Docker Setup
+
+- Airflow runs in its own container  
+- dbt runs in a **separate container**  
+- Airflow triggers dbt via `DockerOperator`  
+
+Benefits:
+
+- Isolation of dependencies  
+- Reproducibility  
+- Flexibility for scaling  
 
 ---
 
@@ -209,51 +243,53 @@ If historical comparisons are required:
 - Events for non-existent attendances  
 - Missing attendance IDs  
 
+---
+
 ### Quarantine Process
 
 - Invalid rows stored separately  
-- Reprocessing attempted for 1 day  
-- Handles out-of-order arrival naturally  
-
+- Allows processing of valid rows without breaking pipeline
 Prevents:
 
-- Hard failures  
-- Pipeline corruption  
-- Lost data  
+- Pipeline failure  
+- Data loss  
+- Corruption  
 
 ---
 
-## Why Historical Data Stays in Redshift
 
-Considered splitting hot/cold storage but rejected because:
+## What I Would Do Next
 
-- A&E volumes do not justify complexity  
-- Redshift storage cost acceptable  
-- Simpler architecture preferred  
+### 1. Incremental dbt Models
 
-Future option if volumes increase significantly.
+Currently, dbt models are fully rebuilt.
+
+Next step:
+- Convert large models to incremental  
+- Use ingestion timestamps / change detection  
+
+Benefits:
+- Faster runtime  
+- Reduced compute cost  
+- Better scalability  
+
+---
+### 2. Improved Orchestration
+
+- Add alerting  
+- Improve retry/backoff strategies  
+- Parameterise DAG for environments  
 
 ---
 
-## Key Architectural Principles
-
-- Decoupled ingestion and processing  
-- Incremental processing only  
-- No full table rebuilds  
-- Idempotent merge design  
-- Event-time > file-time precedence  
-- Warehouse-native logic preferred  
-- Raw data always preserved  
-
----
 
 ## Summary
 
 This pipeline demonstrates:
 
-- Incremental streaming ingestion  
-- Reliable micro-batch processing  
-- Warehouse-based conflict resolution  
-- SCD1 state management  
-- Idempotent merge design  
-- Realistic healthcare event modelling  
+- Streaming-compatible data modelling  
+- Robust handling of late-arriving data  
+- Idempotent, event-time driven updates  
+- SCD2 dimension modelling in dbt  
+- Separation of ingestion, processing, and analytics layers  
+- Containerised, production-style orchestration  
